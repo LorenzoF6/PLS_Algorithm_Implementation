@@ -3,11 +3,12 @@ clc
 clearvars
 warning off
 
-classes_DS = readtable("Sources\Fault_classes_data.csv");
+classes_DS = readtable("..\Data\Sources\Fault_classes_data.csv");
 n = 6; % number of fault classes
 temp = array2table(zeros(size(classes_DS, 1), n));
 temp.Properties.VariableNames = {'class1', 'class2', 'class3', 'class4',...
     'class5', 'class6'};
+%% 
 
 for i = 1:size(classes_DS, 1)
     % class 1: fault between phase A and ground
@@ -50,4 +51,4 @@ end
 classes_DS = removevars(classes_DS ,["A", "B", "C", "G"]);
 classes_DS = [temp classes_DS];
 
-% save("Processed data\Classes_DS.mat", "classes_DS")
+% save("..\Data\Processed data\Classes_DS.mat", "classes_DS")
