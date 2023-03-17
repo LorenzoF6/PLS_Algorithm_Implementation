@@ -2,56 +2,37 @@ clc
 clearvars
 warning off
 
-%% Fault detection dataset
+%% Metal furnace dataset
 
-faults_DS = readtable("..\Data\Sources\Fault_classes_data.csv");
-n = 6; % number of fault classes
-temp = array2table(zeros(size(faults_DS, 1), n));
-temp.Properties.VariableNames = {'class1', 'class2', 'class3', 'class4',...
-    'class5', 'class6'};
+alloy_DS_2 = readtable("..\Data\Sources\Train.csv")
 
-for i = 1:size(faults_DS, 1)
-    % class 1: fault between phase A and ground
-    if faults_DS.G(i) == 1 && faults_DS.C(i) == 0 &&... 
-        faults_DS.B(i) == 0 && faults_DS.A(i) == 1
+n = 5; % number of fault classes
+temp = array2table(zeros(size(alloy_DS, 1), n));
+temp.Properties.VariableNames = {'class0', 'class1', 'class2', 'class3',...
+    'class4'};
+
+for i = 1:size(alloy_DS, 1)
+    if alloy_DS.grade(i) == 0
+        temp.class0(i) = 1;
+    end
+    if alloy_DS.grade(i) == 1
         temp.class1(i) = 1;
     end
-
-    % class 2: fault between phases A, B and ground
-    if faults_DS.G(i) == 1 && faults_DS.C(i) == 0 &&... 
-        faults_DS.B(i) == 1 && faults_DS.A(i) == 1
+    if alloy_DS.grade(i) == 2
         temp.class2(i) = 1;
     end
-
-    % class 3: fault between phases B and C
-    if faults_DS.G(i) == 0 && faults_DS.C(i) == 1 &&... 
-        faults_DS.B(i) == 1 && faults_DS.A(i) == 0
+    if alloy_DS.grade(i) == 3
         temp.class3(i) = 1;
     end
-
-    % class 4: fault between all three phases
-    if faults_DS.G(i) == 0 && faults_DS.C(i) == 1 &&... 
-        faults_DS.B(i) == 1 && faults_DS.A(i) == 1
+    if alloy_DS.grade(i) == 4
         temp.class4(i) = 1;
-    end
-
-    % class 5: three phases symmetrical fault 
-    if faults_DS.G(i) == 1 && faults_DS.C(i) == 1 &&... 
-        faults_DS.B(i) == 1 && faults_DS.A(i) == 1
-        temp.class5(i) = 1;
-    end
-
-    % class 6: no fault
-    if faults_DS.G(i) == 0 && faults_DS.C(i) == 0 &&... 
-        faults_DS.B(i) == 0 && faults_DS.A(i) == 0
-        temp.class6(i) = 1;
     end
 end
 
-faults_DS = removevars(faults_DS ,["A", "B", "C", "G"]);
-faults_DS = [temp faults_DS];
+alloy_DS = removevars(alloy_DS ,["grade", "f9"]);
+alloy_DS = [temp alloy_DS];
 
-save("..\Data\Processed data\Faults_DS.mat", "faults_DS")
+save("..\Data\Processed data\Alloy_DS.mat", "alloy_DS")
 
 %% Iris dataset
 

@@ -4,14 +4,19 @@ warning off
 
 %% Data analysis
 
-load ..\Data\'Processed data'\Iris_DS.mat
+data = readtable("..\Data\Sources\stell-faults.csv");
+data = removevars(data);
 
-Y = table2array(iris_DS(:, 1:3));
-X = table2array(iris_DS(:, 4:end));
+Y = table2array(data(1:739, 28:30));
+X = table2array(data(1:739, 1:27));
 
-B2 = pls(X, Y, false);
+B2 = pls(X, Y, 26, false);
 Y_hat = normalize(X)*B2;
-scatter3(Y_hat(:,2), Y_hat(:,3), Y_hat(:,1))
+scatter3(Y_hat(1:158,1), Y_hat(1:158,2), Y_hat(1:158,3), 'magenta')
+hold on
+scatter3(Y_hat(159:348,1), Y_hat(159:348,2), Y_hat(159:348,3), 'yellow')
+hold on
+scatter3(Y_hat(349:end,1), Y_hat(349:end,2), Y_hat(349:end,3), 'green')
 grid on
 
 for i = 1:size(Y_hat, 1)
@@ -38,13 +43,13 @@ acc = 1 - cont/size(Y, 1);
 
 %% Function
 
-function B = pls(X, Y, mod2, stand, maxIter, tol)
+function B = pls(X, Y, alphaRed, mod2, stand, maxIter, tol)
     
-    function B1 = pls1(X, Y, maxIter, tol)
+    function B1 = pls1(X, Y, alphaRed, maxIter, tol)
         nY = size(Y, 1);
         pY = size(Y, 2);
         mX = size(X, 2);
-        maxRank = min(mX, nY);
+        maxRank = alphaRed;
         for i = 1 : pY
             f = Y(:, 1);
             y = Y(:, i);
@@ -82,15 +87,18 @@ function B = pls(X, Y, mod2, stand, maxIter, tol)
         end
     end
    
-    function B2 = pls2(X, Y, maxIter, tol)
+    function B2 = pls2(X, Y, alphaRed, maxIter, tol)
         nY = size(Y, 1);
         pY = size(Y, 2);
         mX = size(X, 2);
-        maxRank = min(mX, nY);
+        maxRank = alphaRed;
         E = X; % residual matrix for X
         F = Y; % residual matrix for Y
+
+        [~, idx] = max(sum(Y.*Y));
+
         for j = 1 : maxRank
-            u = F(:, randsample(pY, 1));
+            u = F(:, idx);
             tOld = 0;
             for i = 1 : maxIter
                 w = (E'*u)/norm(E'*u); % support vector
@@ -124,18 +132,24 @@ function B = pls(X, Y, mod2, stand, maxIter, tol)
 
     switch nargin
         case 2
+            alphaRed = max(size(Y, 1), size(X, 2));
             mod2 = true;
             stand = true;
             maxIter = 10000;
             tol = 1e-0;
         case 3
+            mod2 = true;
             stand = true;
             maxIter = 10000;
             tol = 1e-9;
         case 4
+            stand = true;
             maxIter = 10000;
             tol = 1e-9;
         case 5
+            maxIter = 10000;
+            tol = 1e-9;
+        case 6
             tol = 1e-9;
     end
     
@@ -152,8 +166,8 @@ function B = pls(X, Y, mod2, stand, maxIter, tol)
     disp("- Tolerance: " + tol);
 
     if mod2
-        B = pls2(X, Y, maxIter, tol);
+        B = pls2(X, Y, alphaRed, maxIter, tol);
     else
-        B = pls1(X, Y, maxIter, tol);
+        B = pls1(X, Y, alphaRed, maxIter, tol);
     end
 end
