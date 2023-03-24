@@ -14,14 +14,13 @@ X = table2array(data(1:739, 1:27));
 %...
 
 %%Validation
-runs = 10;
-[order_index,order_table] = orderAnalysis(X,Y,runs);
+[order_index,order_table] = orderAnalysis(X,Y,5);
 plot(1:size(X,2),order_index(:,3));
 grid on
 [mce_ord,ord] = max(order_index(:,3));
 
 %%Prediction 
-B2 = pls(X, Y, order_index(ord,1), false);
+B2 = pls(X, Y, order_index(ord,ord), false);
 Y_hat = normalize(X)*B2;
 
 %%Y_hat transformation
@@ -33,8 +32,8 @@ scatter3(Y_hat(1:158,1), Y_hat(1:158,2), Y_hat(1:158,3), 'magenta')
 hold on
 scatter3(Y_hat(159:348,1), Y_hat(159:348,2), Y_hat(159:348,3), 'yellow')
 hold on
-scatter3(Y_hat(349:end,1), Y_hat(349:end,2), Y_hat(349:end,3), 'green')
-grid on
+%scatter3(Y_hat(349:end,1), Y_hat(349:end,2), Y_hat(349:end,3), 'green')
+%grid on
 
 
 %%
