@@ -16,19 +16,28 @@ X = table2array(data(1:739, 1:27));
 %%Validation
 runs = 10;
 [order_index,order_table] = orderAnalysis(X,Y,runs);
+figure (1)
 plot(1:size(X,2),order_index(:,3));
 grid on
-[mce_ord,ord] = max(order_index(:,3));
+[mce_ord,idOrd] = max(order_index(:,3));
+
+%cv_list = plsOrder(X,Y);
+%[mce_ord,ord] = max(cv_list);
+%figure(1)
+%plot(1:size(X,2),cv_list)
+%grid on 
+%[ord,idOrd] = max(cv_list);
 
 %%Prediction 
-B2 = pls(X, Y, order_index(ord,1), false);
+B2 = pls(X, Y, order_index(idOrd,1), false); %idOrd se si vuole usare la parte posta sotto commento
 Y_hat = normalize(X)*B2;
 
 %%Y_hat transformation
 Y_hat_bin = performClassification(Y_hat);
 mce = performMCE(Y_hat_bin,Y);
 
-%%Plot Classes 
+%%Plot Classes
+figure(2)
 scatter3(Y_hat(1:158,1), Y_hat(1:158,2), Y_hat(1:158,3), 'magenta')
 hold on
 scatter3(Y_hat(159:348,1), Y_hat(159:348,2), Y_hat(159:348,3), 'yellow')
@@ -80,8 +89,9 @@ function mce = performMCE(Y_hat,Y)
             cont = cont + 1;
         end
     end
-    mce = 1 - cont/size(Y, 1);
-end
+    mce = 1 - cont/size(Y, 1); % togliendo il -1 il grafico cresce al crescere dell'ordine
+end                        % questo però comporta che però con il metodo di cross-validazione facendone più run
+                           % l'ordine scelto rimanga sempre 27
 
 function Y_hat_bin = performClassification(Y_hat)
     for i = 1:size(Y_hat, 1)
