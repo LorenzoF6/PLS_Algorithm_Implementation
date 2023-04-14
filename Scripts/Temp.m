@@ -10,34 +10,45 @@ data = removevars(data);
 Y = table2array(data(1:739, 28:30));
 X = table2array(data(1:739, 1:27));
 
-%%Iris Dataset
-%...
+% Validation
+runs = 100;
+[mce_cross_matrix,order_index,order_table] = orderAnalysis(X,Y,runs);
+[mce_ord,idOrd] = max(order_index(:,2));
 
-%%Validation
-runs = 10;
-[order_index,order_table] = orderAnalysis(X,Y,runs);
-figure (1)
-plot(1:size(X,2),order_index(:,3));
-grid on
-[mce_ord,idOrd] = max(order_index(:,3));
+mce_cross_matrix = mean(mce_cross_matrix,2);
+mce_cross_matrix_1 = (mce_cross_matrix)';
 
-%cv_list = plsOrder(X,Y);
-%[mce_ord,ord] = max(cv_list);
-%figure(1)
-%plot(1:size(X,2),cv_list)
-%grid on 
-%[ord,idOrd] = max(cv_list);
-
-%%Prediction 
-B2 = pls(X, Y, order_index(idOrd,1), false); %idOrd se si vuole usare la parte posta sotto commento
+% Prediction 
+[B2,T] = pls(X, Y, order_index(idOrd,1), true); %idOrd se si vuole usare la parte posta sotto commento
 Y_hat = normalize(X)*B2;
 
-%%Y_hat transformation
+% Y_hat transformation
 Y_hat_bin = performClassification(Y_hat);
 mce = performMCE(Y_hat_bin,Y);
 
-%%Plot Classes
-figure(2)
+
+%%Plotting Area
+
+% Plot model order attendance
+figure(1)
+plot(1:size(X,2),order_index(:,2));
+grid on
+title('model order attendance')
+xlabel('model order')
+ylabel('attendance')
+hold on 
+
+% Plot mce trend over the N runs
+figure (2)
+plot(mce_cross_matrix_1)
+grid on 
+title('mce trend over the N runs')
+xlabel('model order')
+ylabel('mean mce')
+hold on
+
+% Plot Classes
+figure(3)
 scatter3(Y_hat(1:158,1), Y_hat(1:158,2), Y_hat(1:158,3), 'magenta')
 hold on
 scatter3(Y_hat(159:348,1), Y_hat(159:348,2), Y_hat(159:348,3), 'yellow')
@@ -45,13 +56,14 @@ hold on
 scatter3(Y_hat(349:end,1), Y_hat(349:end,2), Y_hat(349:end,3), 'green')
 grid on
 
-
 %%
-function [order_index,order_table] = orderAnalysis(X,Y,runs)
+function [mce_cross_matrix,order_index,order_table] = orderAnalysis(X,Y,runs)
     order_table = zeros(runs,2);
+    mce_cross_matrix = zeros(size(X,2),runs);
     for index = 1:runs
         cv_list = plsOrder(X,Y);
-        [mce_ord,ord] = max(cv_list);
+        [mce_ord,ord] = min(cv_list);
+        mce_cross_matrix(:,index) = cv_list;
         order_table(index,:) = [mce_ord,ord];
     end
 
@@ -80,32 +92,6 @@ function cv_list = plsOrder(X,Y)
     end
 end
 
-function mce = performMCE(Y_hat,Y)
-    cont = 0;
-    for i = 1: size(Y, 1)
-        [~, j] = max(Y(i, :));
-        [~, k] = max(Y_hat(i, :));
-        if j ~= k
-            cont = cont + 1;
-        end
-    end
-    mce = 1 - cont/size(Y, 1); % togliendo il -1 il grafico cresce al crescere dell'ordine
-end                        % questo però comporta che però con il metodo di cross-validazione facendone più run
-                           % l'ordine scelto rimanga sempre 27
-
-function Y_hat_bin = performClassification(Y_hat)
-    for i = 1:size(Y_hat, 1)
-        [~, j] = max(Y_hat(i, :));
-        for k = 1:3
-            if k == j
-                Y_hat_bin(i, k) = 1;
-            else
-                Y_hat_bin(i, k) = 0;
-            end
-        end
-    end
-end
-
 function CV_error = crossPLS(X,Y,initord)
     kfold = 10;
     idx = randsample(size(X,1),size(X,1),false);
@@ -129,15 +115,15 @@ function CV_error = crossPLS(X,Y,initord)
         X_train = X(setdiff(1:size(X,1),idx),:);
         Y_train = Y(setdiff(1:size(Y,1),idx),:);
 
-        B2_cross = pls(X_train,Y_train,initord,false);
+        B2_cross = pls(X_train,Y_train,initord,true);
         Y_cross_hat = performClassification(normalize(X_test)*B2_cross);
         CV_error(index) = performMCE(Y_cross_hat, Y_test);
     end
 end
 
-function B = pls(X, Y, alphaRed, mod2, stand, maxIter, tol)
+function [B,T] = pls(X, Y, alphaRed, mod2, stand, maxIter, tol)
     
-    function B1 = pls1(X, Y, alphaRed, maxIter, tol)
+    function [B1,T] = pls1(X, Y, alphaRed, maxIter, tol)
         nY = size(Y, 1);
         pY = size(Y, 2);
         mX = size(X, 2);
@@ -179,7 +165,7 @@ function B = pls(X, Y, alphaRed, mod2, stand, maxIter, tol)
         end
     end
    
-    function B2 = pls2(X, Y, alphaRed, maxIter, tol)
+    function [B2,T] = pls2(X, Y, alphaRed, maxIter, tol)
         nY = size(Y, 1);
         pY = size(Y, 2);
         mX = size(X, 2);
@@ -258,8 +244,33 @@ function B = pls(X, Y, alphaRed, mod2, stand, maxIter, tol)
     disp("- Tolerance: " + tol);
 
     if mod2
-        B = pls2(X, Y, alphaRed, maxIter, tol);
+        [B,T] = pls2(X, Y, alphaRed, maxIter, tol);
     else
-        B = pls1(X, Y, alphaRed, maxIter, tol);
+        [B,T] = pls1(X, Y, alphaRed, maxIter, tol);
+    end
+end
+
+function mce = performMCE(Y_hat,Y)
+    cont = 0;
+    for i = 1: size(Y, 1)
+        [~, j] = max(Y(i, :));
+        [~, k] = max(Y_hat(i, :));
+        if j ~= k
+            cont = cont + 1;
+        end
+    end
+    mce = cont/size(Y, 1); 
+end                       
+
+function Y_hat_bin = performClassification(Y_hat)
+    for i = 1:size(Y_hat, 1)
+        [~, j] = max(Y_hat(i, :));
+        for k = 1:3
+            if k == j
+                Y_hat_bin(i, k) = 1;
+            else
+                Y_hat_bin(i, k) = 0;
+            end
+        end
     end
 end
