@@ -1,7 +1,8 @@
 <h1 align="center">Partial Least Squares Algorithm Implementation</h1>
 
 ## Overview of the project
-The repository ...
+The repository contains the Software project for the course of Adaptive Learning, Estimation and Supervision of Dynamical Systems (38095) 
+held by Prof. Mazzoleni Mirko at the University of Bergamo
 
 ## Goals
 - [x] ...
@@ -12,9 +13,10 @@ The documentation is aviable at this link []
 
 ## Overview
     .
-    ├── Code                    # Algorithm implementation 
-    ├── Dataset                 # Type of dataset used
+    ├── Scripts                 # Algorithm implementation in Matlab
+    ├── Data                    # Dataset used
     ├── Docs                    # Documentation
+    ├── Images                  # Images 
     └── README.md
 
 ## Authors
