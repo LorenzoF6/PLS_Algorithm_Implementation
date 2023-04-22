@@ -1,104 +1,388 @@
 classdef PLS
-    methods(Static)
-        function [mce_cross_matrix,order_index,order_table] = orderAnalysis(X,Y,runs,flag,num_class)
-        order_table = zeros(runs,2);
-        mce_cross_matrix = zeros(size(X,2),runs);
-        for index = 1:runs
-            cv_list = PLS.plsOrder(X,Y,flag,num_class);
-            [mce_ord,ord] = min(cv_list);
-            mce_cross_matrix(:,index) = cv_list;
-            order_table(index,:) = [mce_ord,ord];
-        end
+    properties (Access = public)
+        % data
+        X {mustBeNumeric}
+        X_norm {mustBeNumeric}
+        Y {mustBeNumeric}
+        Y_norm {mustBeNumeric}
+        pY {mustBeNumeric}
+        nY {mustBeNumeric}
+        mX {mustBeNumeric}
+        mod2 {mustBeNumericOrLogical} = true
+        alpha {mustBeNumeric}
+        normal {mustBeNumericOrLogical} = true
+        maxIter {mustBeNumeric} = 1000
+        tol {mustBeNumeric} = 1e-10
+        % results
+        B {mustBeNumeric}
+        T {mustBeNumeric}
+        P {mustBeNumeric}
+        X_hat {mustBeNumeric}
+        Y_hat {mustBeNumeric}
+        Y_hat_bin {mustBeNumeric}
+        MCE {mustBeNumeric}
+        pMCE
+        CV
+        orderRed
+    end
+    properties (Access = private)
+        print {mustBeNumericOrLogical} = true
+    end
     
-        order_index = zeros(size(X,2),3);
-        for idx = 1 : size(X,2)
-            acc = 0;
-            count = 0;
-            for idx1 = 1: runs
-                if order_table(idx1,2) == idx
-                count = count +1;
-                acc = acc + order_table(idx1,1);
+    methods (Access = public)
+        % builder
+        function obj = PLS(X, Y, mod, alpha, print, normal, maxIter, tol)
+            obj.X = X;
+            obj.mX = size(X, 2);
+            obj.Y = Y;
+            [obj.nY, obj.pY] = size(Y);
+            obj.alpha = obj.mX;
+            switch nargin
+                case 3
+                    obj.mod2 = mod;
+                case 4
+                    obj.mod2 = mod;
+                    obj.alpha = alpha;
+                case 5
+                    obj.mod2 = mod;
+                    obj.alpha = alpha;
+                    obj.print = print;
+                case 6
+                    obj.mod2 = mod;
+                    obj.alpha = alpha;
+                    obj.print = print;
+                    obj.normal = normal;
+                case 7
+                    obj.mod2 = mod;
+                    obj.alpha = alpha;
+                    obj.print = print;
+                    obj.normal = normal;
+                    obj.maxIter = maxIter;
+                case 8
+                    obj.mod2 = mod;
+                    obj.alpha = alpha;
+                    obj.print = print;
+                    obj.normal = normal;
+                    obj.maxIter = maxIter;
+                    obj.tol = tol;
+            end
+            if obj.normal
+                obj.X_norm = normalize(X);
+                obj.Y_norm = normalize(Y);
+            end
+            if obj.print
+                disp("PLS configuration: ")
+                disp("- PLS2: " + obj.mod2);
+                disp("- Normalization: " + obj.normal);
+                disp("- Maximum iterations: " + obj.maxIter);
+                disp("- Tolerance: " + obj.tol);
+                disp("- Num. of output variables: " + obj.pY);
+                disp("- Num. of input variables: " + obj.mX);
+                disp("- Order reduction: " + obj.alpha);
+            end
+        end
+
+        function obj = estimate(obj, alpha)
+            switch nargin
+                case 2
+                    obj.alpha = alpha;
+            end
+            if obj.mod2
+                [obj.B, obj.T, obj.P] = obj.estimatePLS2;
+            else
+                [obj.B, obj.T, obj.P] = obj.estimatePLS1;
+            end
+            % estimation of X_hat and Y_hat
+            obj.X_hat = obj.T*obj.P';
+            if obj.normal
+                obj.Y_hat = obj.X_norm*obj.B;
+            else
+                obj.Y_hat = obj.X*obj.B;
+            end
+        end
+
+        function obj = predict(obj)
+            % classify data
+            for i = 1:obj.nY
+                [~, j] = max(obj.Y_hat(i, :));
+                for k = 1:obj.pY
+                    if k == j
+                        obj.Y_hat_bin(i, k) = 1;
+                    else
+                        obj.Y_hat_bin(i, k) = 0;
+                    end
                 end
             end
-            if count ~= 0
-                order_index(idx,:) = [idx, count, acc/count];
-            else
-                order_index(idx,:) = [idx, count, 0];
+            % computation of MCE
+            cont = 0;
+                for i = 1:obj.nY
+                    [~, j] = max(obj.Y(i, :));
+                    [~, k] = max(obj.Y_hat_bin(i, :));
+                    if j ~= k
+                        cont = cont + 1;
+                    end
+                end
+            obj.MCE = cont/obj.nY;
+            % computation of MCE for each class
+            obj.pMCE = array2table(zeros(1, obj.pY));
+            obj.pMCE.Properties.VariableNames = repmat("Class", 1, obj.pY) + (1:obj.pY);
+            for j = 1:obj.pY
+                classCount = 0;
+                errorCount = 0;
+                for i = 1:obj.nY
+                    if obj.Y(i, j) == 1
+                        classCount = classCount + 1;
+                        if obj.Y(i, j) ~= obj.Y_hat_bin(i, j)
+                            errorCount = errorCount + 1;
+                        end
+                    end
+                end
+                obj.pMCE(1, j) = {errorCount/classCount};
+            end
+        end
+
+        function obj = crossval(obj, kFold)
+            if nargin < 2
+                kFold = 10;
+            end
+            % setting data structures and parameters
+            obj.CV.kFold = kFold;
+            idx = randsample(obj.nY, obj.nY, false);
+            obj.CV.X_rand = obj.X(idx, :);
+            obj.CV.Y_rand = obj.Y(idx,:);
+            step = round(obj.nY/kFold);
+            start = 1;
+            obj.CV.kMCE = array2table(zeros(kFold, 2));
+            obj.CV.kMCE.Properties.VariableNames = ["Train", "Test"];
+            obj.CV.avg_kMCE = array2table(zeros(1, 2));
+            obj.CV.avg_kMCE.Properties.VariableNames = ["Train", "Test"];
+            obj.CV.avg_pMCE = array2table(zeros(2, obj.pY));
+            obj.CV.avg_pMCE.Properties.VariableNames = repmat("Class", 1, obj.pY) + (1:obj.pY);
+            obj.CV.avg_pMCE.Properties.RowNames = ["Train", "Test"];
+            temp_train = zeros(1, obj.pY);
+            temp_test = zeros(1, obj.pY);
+            % execution of cross-validation
+            for foldIndex = 1:kFold
+                if foldIndex < kFold
+                    idx = start:(start + step - 1);
+                    start = start + step;
+                else
+                    idx = start:obj.nY;
+                end
+                % computation of test data
+                X_test = obj.CV.X_rand(idx, :);
+                Y_test = obj.CV.Y_rand(idx, :);
+                % computation of train data
+                resIdx = setdiff(1:obj.nY, idx);
+                X_train = obj.CV.X_rand(resIdx, :);
+                Y_train = obj.CV.Y_rand(resIdx, :);
+                % PLS estimation (train)
+                obj1 = PLS(X_train, Y_train, obj.mod2, obj.alpha, false);
+                obj1 = obj1.estimate(obj.alpha);
+                obj1 = obj1.predict;
+                obj.CV.kMCE(foldIndex, 1) = array2table(obj1.MCE);
+                temp_train = temp_train + table2array(obj1.pMCE);
+                % PLS estimation (test)
+                if obj.normal
+                    [obj.CV.kMCE(foldIndex, 2), temp] = PLS.predictStatic(...
+                        Y_test, normalize(X_test)*obj1.B);
+                else
+                    [obj.CV.kMCE(foldIndex, 2), temp] = PLS.predictStatic(...
+                        Y_test, X_test*obj1.B);
+                end
+                temp_test = temp_test + temp;
+            end
+            % results saving
+            obj.CV.avg_kMCE(1, 1) = array2table(mean(obj.CV.kMCE{:, 1}));
+            obj.CV.avg_kMCE(1, 2) = array2table(mean(obj.CV.kMCE{:, 2}));
+            obj.CV.avg_pMCE(1, :) = array2table(temp_train/kFold);
+            obj.CV.avg_pMCE(2, :) = array2table(temp_test/kFold);
+        end
+
+        function obj = orderAnalysis(obj, nIter)
+            if nargin < 2
+                nIter = 10;
+            end
+            obj.orderRed.nIter = nIter;
+            % calculation of the best alpha for each iteration
+            bestAvgMCE = zeros(nIter, 2);
+            bestTable = zeros(obj.mX, nIter);
+            for i = 1:nIter
+                alphaAvgMCE_i = computeMCEByOrder(obj);
+                [bestMCE_i, bestAlpha_i] = min(alphaAvgMCE_i);
+                bestTable(:, i) = alphaAvgMCE_i;
+                bestAvgMCE(i, :) = [bestMCE_i, bestAlpha_i];
+            end
+            % calculation of some statistics regarding MCE
+            MCE_statistics = array2table(zeros(obj.mX, 10));
+            MCE_statistics.Properties.VariableNames = ["Min", "Prct25",...
+                "Avg", "Median", "Prct75", "Max", "Std", "Skewness",...
+                "Kurtosis", "JB"];
+            for i = 1:obj.mX
+                MCE_statistics(i, 1) = array2table(min(bestTable(i, :)));
+                MCE_statistics(i, 2) = array2table(prctile(bestTable(i, :), 25));
+                MCE_statistics(i, 3) = array2table(mean(bestTable(i, :)));
+                MCE_statistics(i, 4) = array2table(median(bestTable(i, :)));
+                MCE_statistics(i, 5) = array2table(prctile(bestTable(i, :), 75));
+                MCE_statistics(i, 6) = array2table(max(bestTable(i, :)));
+                MCE_statistics(i, 7) = array2table(std(bestTable(i, :)));
+                MCE_statistics(i, 8) = array2table(skewness(bestTable(i, :)));
+                MCE_statistics(i, 9) = array2table(kurtosis(bestTable(i, :)));
+                MCE_statistics(i, 9) = array2table(kurtosis(bestTable(i, :)));
+                MCE_statistics(i, 10) = array2table(jbtest(bestTable(i, :)));
+            end
+            % calculation of the best alpha
+            bestAlphaCounters = array2table(zeros(obj.mX, 2));
+            bestAlphaCounters.Properties.VariableNames = ["Counter", "avgMCE"];
+            for ord = 1:obj.mX
+                acc = 0;
+                count = 0;
+                for i = 1:nIter
+                    if bestAvgMCE(i, 2) == ord
+                        count = count +1;
+                        acc = acc + bestAvgMCE(i, 1);
+                    end
+                end
+                if count ~= 0
+                    bestAlphaCounters(ord, :) = {count, acc/count};
+                else
+                    bestAlphaCounters(ord, :) = {count, 0};
+                end
+            end
+            % results saving
+            [~, obj.orderRed.bestAlpha] = max(bestAlphaCounters{:, 1});
+            obj.orderRed.bestAlphaCounters = bestAlphaCounters;
+            obj.orderRed.MCE_statistics = MCE_statistics;
+        end
+    end
+
+    methods (Static)
+        function [MCE, pMCE] = predictStatic(Y, Y_hat)
+            [nY, pY] = size(Y);
+            Y_hat_bin = zeros(nY, pY);
+            % classify data
+            for i = 1:nY
+                [~, j] = max(Y_hat(i, :));
+                for k = 1:pY
+                    if k == j
+                        Y_hat_bin(i, k) = 1;
+                    else
+                        Y_hat_bin(i, k) = 0;
+                    end
+                end
+            end
+            % computation of MCE
+            cont = 0;
+            for i = 1:nY
+                [~, j] = max(Y(i, :));
+                [~, k] = max(Y_hat_bin(i, :));
+                if j ~= k
+                    cont = cont + 1;
+                end
+            end
+            MCE = array2table(cont/nY);
+            % computation of MCE for each class
+            pMCE = zeros(1, pY);
+            for j = 1:pY
+                classCount = 0;
+                errorCount = 0;
+                for i = 1:nY
+                    if Y(i, j) == 1
+                        classCount = classCount + 1;
+                        if Y(i, j) ~= Y_hat_bin(i, j)
+                            errorCount = errorCount + 1;
+                        end
+                    end
+                end
+                pMCE(1, j) = errorCount/classCount;
             end
         end
     end
 
-    function cv_list = plsOrder(X,Y,flag,num_class)
-        cv_list = zeros(size(X,2),1);
-        for id_ord = 1:size(X,2)
-            cv_list(id_ord,1) = mean(PLS.crossPLS(X,Y,id_ord,flag,num_class));
-        end
-    end
-
-    function CV_error = crossPLS(X,Y,initord,flag,num_class)
-        kfold = 10;
-        idx = randsample(size(X,1),size(X,1),false);
-        X = X(idx,:);
-        Y = Y(idx,:);
-
-        step = round(size(X,1)/kfold);
-        startk = 1;
-        CV_error = zeros(kfold,1);
-        for index = 1 : kfold
-            if index < kfold
-                idx = startk:(startk + step-1);
-                startk = startk + step;
+    methods (Access = private)
+        function [B2, T, P] = estimatePLS2(obj)
+            maxRank = obj.alpha;
+            if obj.normal
+                X_1 = obj.X_norm;
+                Y_1 = obj.Y_norm;
             else
-                idx = startk:size(X,1);
+                X_1 = obj.X;
+                Y_1 = obj.Y;
             end
-            X_test = X(idx,:);
-            Y_test = Y(idx,:);
-            
-            X_train = X(setdiff(1:size(X,1),idx),:);
-            Y_train = Y(setdiff(1:size(Y,1),idx),:);
-    
-            B2_cross = PLS.pls(X_train,Y_train,initord,flag);
-            Y_cross_hat = PLS.performClassification(normalize(X_test)*B2_cross,num_class);
-            CV_error(index) = PLS.performMCE(Y_cross_hat, Y_test);
+            E = X_1; % residual matrix for X
+            F = Y_1; % residual matrix for Y
+            [~, idx] = max(sum(Y_1.*Y_1));
+            % search of the j-th eigenvector
+            for j = 1:maxRank
+                u = F(:, idx);
+                tOld = 0;
+                for i = 1:obj.maxIter
+                    w = (E'*u)/norm(E'*u); % support vector
+                    t = E*w; % j-th column of the score matrix for X
+                    q = (F'*t)/norm(F'*t); % j-th column of the loading matrix for Y
+                    u = F*q; % j-th column of the score matrix for Y
+                    if abs(tOld - t) < obj.tol
+                        break;
+                    else 
+                        tOld = t;
+                    end
+                end
+                p = (E'*t)/(t'*t); % j-th column of the loading matrix of X
+                % scaling
+                t = t*norm(p);
+                w = w*norm(p);
+                p = p/norm(p);
+                % calculation of the error matrices
+                b = (u'*t)/(t'*t); % j-th column of the coefficient regression matrix
+                E = E - t*p';
+                F = F - b*t*q';
+                % calculation of W, P, T and B2
+                W(:, j) = w;
+                P(:, j) = p;
+                T(:, j) = t;
+                B2 = W*(P'*W)^-1*(T'*T)^-1*T'*Y_1;
+            end
         end
-    end
 
-    function [B,T] = pls(X, Y, alphaRed, mod2, stand, maxIter, tol)
-    
-        function [B1,T] = pls1(X, Y, alphaRed, maxIter, tol)
-            nY = size(Y, 1);
-            pY = size(Y, 2);
-            mX = size(X, 2);
-            maxRank = alphaRed;
-            for i = 1 : pY
-                f = Y(:, 1);
-                y = Y(:, i);
-                W = zeros(mX, maxRank);
-                P = zeros(mX, maxRank);
-                T = zeros(nY, 1);
-                E = X;
-                for j = 1 : maxRank
+        function [B1, T, P] = estimatePLS1(obj)
+            maxRank = obj.alpha;
+            if obj.normal
+                X_1 = obj.X_norm;
+                Y_1 = obj.Y_norm;
+            else
+                X_1 = obj.X;
+                Y_1 = obj.Y;
+            end
+            % optimizing for each output variable
+            for i = 1:obj.pY
+                f = Y_1(:, 1);
+                y = Y_1(:, i);
+                W = zeros(obj.mX, maxRank);
+                P = zeros(obj.mX, maxRank);
+                T = zeros(obj.nY, 1);
+                E = X_1;
+                % search of the j-th eigenvector
+                for j = 1:maxRank
                     tOld = 0;
-                    for k = 1 : maxIter
+                    for k = 1 : obj.maxIter
                         w = (E'*y)/norm(E'*y);
                         t = E*w;
                         p = (E'*t)/(t'*t);
-                        if abs(tOld - t) < tol
+                        if abs(tOld - t) < obj.tol
                             break;
                         else
                             tOld = t;
                         end
                     end
-                
                     % scaling
                     t = t*norm(p);
                     w = w*norm(p);
                     p = p/norm(p);
-                    
+                    % calculation of the error matrices
                     b = (y'*t)/(t'*t);
                     E = E - t*p';
                     f = f - b*t*1;
-    
+                    % calculation of W, P and T
                     W(:, j) = w;
                     P(:, j) = p;
                     T(:, j) = t;
@@ -106,144 +390,16 @@ classdef PLS
                 B1(:, i) = W*(P'*W)^-1*(T'*T)^-1*T'*y;
             end
         end
-   
-        function [B2,T] = pls2(X, Y, alphaRed, maxIter, tol)
-            nY = size(Y, 1);
-            pY = size(Y, 2);
-            mX = size(X, 2);
-            maxRank = alphaRed;
-            E = X; % residual matrix for X
-            F = Y; % residual matrix for Y
 
-            [~, idx] = max(sum(Y.*Y));
-
-            for j = 1 : maxRank
-                u = F(:, idx);
-                tOld = 0;
-                for i = 1 : maxIter
-                    w = (E'*u)/norm(E'*u); % support vector
-                    t = E*w; % j-th column of the score matrix for X
-                    q = (F'*t)/norm(F'*t); % j-th column of the loading matrix for Y
-                    u = F*q; % j-th column of the score matrix for Y
-                    if abs(tOld - t) < tol
-                        break;
-                    else 
-                        tOld = t;
-                    end
-                end
-                p = (E'*t)/(t'*t); % j-th column of the loading matrix of X
-            
-                % scaling
-                t = t*norm(p);
-                w = w*norm(p);
-                p = p/norm(p);
-            
-                b = (u'*t)/(t'*t); % j-th column of the coefficient regression matrix
-                E = E - t*p';
-                F = F - b*t*q';
-
-                W(:, j) = w;
-                P(:, j) = p;
-                T(:, j) = t;
-
-                B2 = W*(P'*W)^-1*(T'*T)^-1*T'*Y;
+        function alphaAvgMCE = computeMCEByOrder(obj)
+            alphaAvgMCE = zeros(obj.mX, 1);
+            for order = 1:obj.mX
+                obj1 = PLS(obj.X, obj.Y, obj.mod2, order, false);
+                obj1 = obj1.estimate;
+                obj1 = obj1.predict;
+                obj1 = obj1.crossval;
+                alphaAvgMCE(order, 1) = table2array(obj1.CV.avg_kMCE(1, 2));
             end
         end
-
-        switch nargin
-            case 2
-                alphaRed = max(size(Y, 1), size(X, 2));
-                mod2 = true;
-                stand = true;
-                maxIter = 10000;
-                tol = 1e-0;
-            case 3
-                mod2 = true;
-                stand = true;
-                maxIter = 10000;
-                tol = 1e-9;
-            case 4
-                stand = true;
-                maxIter = 10000;
-                tol = 1e-9;
-            case 5
-                maxIter = 10000;
-                tol = 1e-9;
-            case 6
-                tol = 1e-9;
-        end
-    
-        % data standardization
-        if stand
-            X = normalize(X);
-            Y = normalize(Y);
-        end
-    
-        disp("PLS configuration: ")
-        disp("- PLS2: " + mod2);
-        disp("- Normalization: " + stand);
-        disp("- Maximum iterations: " + maxIter);
-        disp("- Tolerance: " + tol);
-
-        if mod2
-            [B,T] = pls2(X, Y, alphaRed, maxIter, tol);
-        else
-            [B,T] = pls1(X, Y, alphaRed, maxIter, tol);
-        end
-    end
-
-    function mce = performMCE(Y_hat,Y)
-        cont = 0;
-        for i = 1: size(Y, 1)
-            [~, j] = max(Y(i, :));
-            [~, k] = max(Y_hat(i, :));
-            if j ~= k
-                cont = cont + 1;
-            end
-        end
-        mce = cont/size(Y, 1); 
-    end                       
-
-    function Y_hat_bin = performClassification(Y_hat, num_class)
-        for i = 1:size(Y_hat, 1)
-            [~, j] = max(Y_hat(i, :));
-            for k = 1:num_class
-                if k == j
-                    Y_hat_bin(i, k) = 1;
-                else
-                    Y_hat_bin(i, k) = 0;
-                end
-            end
-        end
-    end
-
-    function [] = plotResult(X,Y_hat,order_index,mce_cross_matrix)
-        % Plot model order attendance
-        figure(1)
-        plot(1:size(X,2),order_index(:,2));
-        grid on
-        title('model order attendance')
-        xlabel('model order')
-        ylabel('attendance')
-        hold on 
-    
-        % Plot mce trend over the N runs
-        figure (2)
-        plot((mean(mce_cross_matrix,2))')
-        grid on 
-        title('mce trend over the N runs')
-        xlabel('model order')
-        ylabel('mean mce')
-        hold on
-    
-        % Plot Classes
-        figure(3)
-        scatter3(Y_hat(1:158,1), Y_hat(1:158,2), Y_hat(1:158,3), 'magenta')
-        hold on
-        scatter3(Y_hat(159:348,1), Y_hat(159:348,2), Y_hat(159:348,3), 'yellow')
-        hold on
-        scatter3(Y_hat(349:end,1), Y_hat(349:end,2), Y_hat(349:end,3), 'green')
-        grid on
-    end
     end
 end
