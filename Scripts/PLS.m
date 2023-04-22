@@ -199,37 +199,42 @@ classdef PLS
             obj.CV.avg_pMCE(2, :) = array2table(temp_test/kFold);
         end
 
-        function obj = orderAnalysis(obj, nIter)
-            if nargin < 2
+        function obj = orderAnalysis(obj, nIter, print)
+            if nargin == 1
                 nIter = 10;
+                print = false;
+            elseif nargin == 2
+                print = false;
             end
             obj.orderRed.nIter = nIter;
             % calculation of the best alpha for each iteration
             bestAvgMCE = zeros(nIter, 2);
-            bestTable = zeros(obj.mX, nIter);
+            alphaMCE = zeros(obj.mX, nIter);
             for i = 1:nIter
-                alphaAvgMCE_i = computeMCEByOrder(obj);
+                alphaAvgMCE_i = computeMCEByOrder(obj, i, nIter, print);
                 [bestMCE_i, bestAlpha_i] = min(alphaAvgMCE_i);
-                bestTable(:, i) = alphaAvgMCE_i;
+                alphaMCE(:, i) = alphaAvgMCE_i;
                 bestAvgMCE(i, :) = [bestMCE_i, bestAlpha_i];
             end
+            alphaMCE = array2table(alphaMCE);
+            alphaMCE.Properties.VariableNames = repmat("Iter", 1, nIter) + (1:nIter);
             % calculation of some statistics regarding MCE
             MCE_statistics = array2table(zeros(obj.mX, 10));
             MCE_statistics.Properties.VariableNames = ["Min", "Prct25",...
                 "Avg", "Median", "Prct75", "Max", "Std", "Skewness",...
                 "Kurtosis", "JB"];
             for i = 1:obj.mX
-                MCE_statistics(i, 1) = array2table(min(bestTable(i, :)));
-                MCE_statistics(i, 2) = array2table(prctile(bestTable(i, :), 25));
-                MCE_statistics(i, 3) = array2table(mean(bestTable(i, :)));
-                MCE_statistics(i, 4) = array2table(median(bestTable(i, :)));
-                MCE_statistics(i, 5) = array2table(prctile(bestTable(i, :), 75));
-                MCE_statistics(i, 6) = array2table(max(bestTable(i, :)));
-                MCE_statistics(i, 7) = array2table(std(bestTable(i, :)));
-                MCE_statistics(i, 8) = array2table(skewness(bestTable(i, :)));
-                MCE_statistics(i, 9) = array2table(kurtosis(bestTable(i, :)));
-                MCE_statistics(i, 9) = array2table(kurtosis(bestTable(i, :)));
-                MCE_statistics(i, 10) = array2table(jbtest(bestTable(i, :)));
+                MCE_statistics(i, 1) = array2table(min(alphaMCE{i, :}));
+                MCE_statistics(i, 2) = array2table(prctile(alphaMCE{i, :}, 25));
+                MCE_statistics(i, 3) = array2table(mean(alphaMCE{i, :}));
+                MCE_statistics(i, 4) = array2table(median(alphaMCE{i, :}));
+                MCE_statistics(i, 5) = array2table(prctile(alphaMCE{i, :}, 75));
+                MCE_statistics(i, 6) = array2table(max(alphaMCE{i, :}));
+                MCE_statistics(i, 7) = array2table(std(alphaMCE{i, :}));
+                MCE_statistics(i, 8) = array2table(skewness(alphaMCE{i, :}));
+                MCE_statistics(i, 9) = array2table(kurtosis(alphaMCE{i, :}));
+                MCE_statistics(i, 9) = array2table(kurtosis(alphaMCE{i, :}));
+                MCE_statistics(i, 10) = array2table(jbtest(alphaMCE{i, :}));
             end
             % calculation of the best alpha
             bestAlphaCounters = array2table(zeros(obj.mX, 2));
@@ -252,6 +257,7 @@ classdef PLS
             % results saving
             [~, obj.orderRed.bestAlpha] = max(bestAlphaCounters{:, 1});
             obj.orderRed.bestAlphaCounters = bestAlphaCounters;
+            obj.orderRed.alphaMCE = alphaMCE;
             obj.orderRed.MCE_statistics = MCE_statistics;
         end
     end
@@ -391,9 +397,14 @@ classdef PLS
             end
         end
 
-        function alphaAvgMCE = computeMCEByOrder(obj)
+        function alphaAvgMCE = computeMCEByOrder(obj, iter, nIter, print)
             alphaAvgMCE = zeros(obj.mX, 1);
             for order = 1:obj.mX
+                if print
+                    percent = round(((order + (iter-1)*obj.mX)/(obj.mX*nIter))*100, 2);
+                    disp("Iteration " + iter + " of " + nIter + ", order " +...
+                        order + " of " + obj.mX + " (" + percent + "%)");
+                end
                 obj1 = PLS(obj.X, obj.Y, obj.mod2, order, false);
                 obj1 = obj1.estimate;
                 obj1 = obj1.predict;
