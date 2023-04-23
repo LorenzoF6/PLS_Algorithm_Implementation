@@ -8,11 +8,11 @@ classdef PLS
         pY {mustBeNumeric}
         nY {mustBeNumeric}
         mX {mustBeNumeric}
-        mod2 {mustBeNumericOrLogical} = true
-        alpha {mustBeNumeric}
-        normal {mustBeNumericOrLogical} = true
-        maxIter {mustBeNumeric} = 1000
-        tol {mustBeNumeric} = 1e-10
+        mod2 {mustBeNumericOrLogical}
+        normal {mustBeNumericOrLogical}
+        maxIter {mustBeInteger, mustBeNonzero, mustBePositive} 
+        tol {mustBeNumeric, mustBeNonzero, mustBePositive}
+        alpha {mustBeInteger, mustBeNonzero, mustBePositive}
         % results
         B {mustBeNumeric}
         T {mustBeNumeric}
@@ -22,71 +22,62 @@ classdef PLS
         Y_hat_bin {mustBeNumeric}
         MCE {mustBeNumeric}
         pMCE
+        PCA
         CV
         orderRed
-    end
-    properties (Access = private)
-        print {mustBeNumericOrLogical} = true
     end
     
     methods (Access = public)
         % builder
-        function obj = PLS(X, Y, mod, alpha, print, normal, maxIter, tol)
+        function obj = PLS(X, Y, mod, normal, maxIter, tol, print)
+            % validation of input arguments
+            arguments
+                X {mustBeNumeric, mustBeNonmissing}
+                Y {mustBeNumeric, mustBeNonmissing}
+                mod.Algorithm {mustBeMember(mod.Algorithm, ["PLS2", "PLS1"])} = "PLS2"
+                normal.Normalize {mustBeMember(normal.Normalize, ["true", "false"])} = "true"
+                maxIter.MaxIterations {mustBeInteger, mustBeNonzero, mustBePositive} = 1000
+                tol.ExitTolerance {mustBeNumeric, mustBeNonzero, mustBePositive} = 1e-10
+                print.Trace {mustBeMember(print.Trace, ["on", "off"])} = "on"
+            end
+            % setting of object fields
             obj.X = X;
             obj.mX = size(X, 2);
             obj.Y = Y;
             [obj.nY, obj.pY] = size(Y);
-            obj.alpha = obj.mX;
-            switch nargin
-                case 3
-                    obj.mod2 = mod;
-                case 4
-                    obj.mod2 = mod;
-                    obj.alpha = alpha;
-                case 5
-                    obj.mod2 = mod;
-                    obj.alpha = alpha;
-                    obj.print = print;
-                case 6
-                    obj.mod2 = mod;
-                    obj.alpha = alpha;
-                    obj.print = print;
-                    obj.normal = normal;
-                case 7
-                    obj.mod2 = mod;
-                    obj.alpha = alpha;
-                    obj.print = print;
-                    obj.normal = normal;
-                    obj.maxIter = maxIter;
-                case 8
-                    obj.mod2 = mod;
-                    obj.alpha = alpha;
-                    obj.print = print;
-                    obj.normal = normal;
-                    obj.maxIter = maxIter;
-                    obj.tol = tol;
+            if mod.Algorithm == "PLS2"
+                obj.mod2 = true;
+            else
+                obj.mod2 = false;
             end
-            if obj.normal
+            if normal.Normalize == "true"
+                obj.normal = true;
                 obj.X_norm = normalize(X);
                 obj.Y_norm = normalize(Y);
+            else
+                obj.normal = false;
             end
-            if obj.print
+            obj.maxIter = maxIter.MaxIterations;
+            obj.tol = tol.ExitTolerance;
+            if print.Trace == "on"
                 disp("PLS configuration: ")
-                disp("- PLS2: " + obj.mod2);
+                disp("- Algorithm: " + mod.Algorithm);
                 disp("- Normalization: " + obj.normal);
                 disp("- Maximum iterations: " + obj.maxIter);
-                disp("- Tolerance: " + obj.tol);
-                disp("- Num. of output variables: " + obj.pY);
-                disp("- Num. of input variables: " + obj.mX);
+                disp("- Exit tolerance: " + obj.tol);
+                disp("- Num. of output variables (Y): " + obj.pY);
+                disp("- Num. of input variables (X): " + obj.mX);
                 disp("- Order reduction: " + obj.alpha);
             end
         end
 
-        function obj = estimate(obj, alpha)
-            switch nargin
-                case 2
-                    obj.alpha = alpha;
+        function obj = estimate(obj, orderReduction, PCA)
+            arguments
+                obj {mustBeNonmissing}
+                orderReduction {mustBeInteger, mustBeNonzero} = obj.mX;
+                PCA.PCA {mustBeMember(PCA.PCA, ["true", "false"])} = "true"
             end
+            obj.alpha = orderReduction;
             if obj.mod2
                 [obj.B, obj.T, obj.P] = obj.estimatePLS2;
             else
@@ -96,8 +87,16 @@ classdef PLS
             obj.X_hat = obj.T*obj.P';
             if obj.normal
                 obj.Y_hat = obj.X_norm*obj.B;
+                if PCA.PCA == "true"
+                    [obj.PCA.P, obj.PCA.T] = pca(obj.X_norm, "NumComponents", obj.alpha);
+                    obj.PCA.X_hat = obj.PCA.T*obj.PCA.P';
+                end
             else
                 obj.Y_hat = obj.X*obj.B;
+                if PCA.PCA == "true"
+                    [obj.PCA.P, obj.PCA.T] = pca(obj.X, 'NumComponents', obj.alpha);
+                    obj.PCA.X_hat = obj.PCA.T*obj.PCA.P';
+                end
             end
         end
 
@@ -142,8 +141,9 @@ classdef PLS
         end
 
         function obj = crossval(obj, kFold)
-            if nargin < 2
-                kFold = 10;
+            arguments
+                obj {mustBeNonmissing}
+                kFold {mustBeInteger} = 10;
             end
             % setting data structures and parameters
             obj.CV.kFold = kFold;
@@ -177,7 +177,11 @@ classdef PLS
                 X_train = obj.CV.X_rand(resIdx, :);
                 Y_train = obj.CV.Y_rand(resIdx, :);
                 % PLS estimation (train)
-                obj1 = PLS(X_train, Y_train, obj.mod2, obj.alpha, false);
+                if obj.mod2
+                    obj1 = PLS(X_train, Y_train, "Algorithm", "PLS2", "Trace", "off");
+                else
+                    obj1 = PLS(X_train, Y_train, "Algorithm", "PLS1", "Trace", "off");
+                end
                 obj1 = obj1.estimate(obj.alpha);
                 obj1 = obj1.predict;
                 obj.CV.kMCE(foldIndex, 1) = array2table(obj1.MCE);
@@ -200,18 +204,17 @@ classdef PLS
         end
 
         function obj = orderAnalysis(obj, nIter, print)
-            if nargin == 1
-                nIter = 10;
-                print = false;
-            elseif nargin == 2
-                print = false;
+            arguments
+                obj {mustBeNonmissing}
+                nIter {mustBeInteger, mustBeNonzero, mustBePositive} = 10
+                print.Trace {mustBeMember(print.Trace, ["on", "off"])} = "off"
             end
             obj.orderRed.nIter = nIter;
             % calculation of the best alpha for each iteration
             bestAvgMCE = zeros(nIter, 2);
             alphaMCE = zeros(obj.mX, nIter);
             for i = 1:nIter
-                alphaAvgMCE_i = computeMCEByOrder(obj, i, nIter, print);
+                alphaAvgMCE_i = computeMCEByOrder(obj, i, nIter, print.Trace);
                 [bestMCE_i, bestAlpha_i] = min(alphaAvgMCE_i);
                 alphaMCE(:, i) = alphaAvgMCE_i;
                 bestAvgMCE(i, :) = [bestMCE_i, bestAlpha_i];
@@ -397,16 +400,20 @@ classdef PLS
             end
         end
 
-        function alphaAvgMCE = computeMCEByOrder(obj, iter, nIter, print)
+        function alphaAvgMCE = computeMCEByOrder(obj, iter, nIter, trace)
             alphaAvgMCE = zeros(obj.mX, 1);
             for order = 1:obj.mX
-                if print
+                if trace == "on"
                     percent = round(((order + (iter-1)*obj.mX)/(obj.mX*nIter))*100, 2);
                     disp("Iteration " + iter + " of " + nIter + ", order " +...
                         order + " of " + obj.mX + " (" + percent + "%)");
                 end
-                obj1 = PLS(obj.X, obj.Y, obj.mod2, order, false);
-                obj1 = obj1.estimate;
+                if obj.mod2
+                    obj1 = PLS(obj.X, obj.Y, "Algorithm", "PLS2", "Trace", "off");
+                else
+                    obj1 = PLS(obj.X, obj.Y, "Algorithm", "PLS1", "Trace", "off");
+                end
+                obj1 = obj1.estimate(order);
                 obj1 = obj1.predict;
                 obj1 = obj1.crossval;
                 alphaAvgMCE(order, 1) = table2array(obj1.CV.avg_kMCE(1, 2));
