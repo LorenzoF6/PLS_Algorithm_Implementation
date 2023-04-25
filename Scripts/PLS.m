@@ -27,6 +27,7 @@ classdef PLS
         TTV
         CV
         orderRed
+        scatterTable
     end
     
     methods (Access = public)
@@ -126,8 +127,9 @@ classdef PLS
                 end
             obj.MCE = cont/obj.nY;
             % computation of MCE for each class
-            obj.pMCE = array2table(zeros(1, obj.pY));
-            obj.pMCE.Properties.VariableNames = repmat("Class", 1, obj.pY) + (1:obj.pY);
+            obj.pMCE = array2table(zeros(1, obj.pY+1));
+            obj.pMCE.Properties.VariableNames = [repmat("Class", 1, obj.pY) + (1:obj.pY), "Avg"];
+            obj.pMCE(1, obj.pY+1) = {obj.MCE};
             for j = 1:obj.pY
                 classCount = 0;
                 errorCount = 0;
@@ -189,7 +191,7 @@ classdef PLS
             obj1 = obj1.estimate(obj.alpha);
             obj1 = obj1.predict;
             ValMCE(1, 1) = array2table(obj1.MCE);
-            ValpMCE(1, :) = obj1.pMCE;
+            ValpMCE(1, :) = obj1.pMCE(1, 1:end-1);
             % PLS estimation (test)
             if obj.normal
                 [ValMCE(1, 2), temp1, temp2] = PLS.predictStatic(...
@@ -254,7 +256,7 @@ classdef PLS
                 obj1 = obj1.estimate(obj.alpha);
                 obj1 = obj1.predict;
                 obj.CV.kMCE(foldIndex, 1) = array2table(obj1.MCE);
-                temp_train = temp_train + table2array(obj1.pMCE);
+                temp_train = temp_train + table2array(obj1.pMCE(1, 1:end-1));
                 % PLS estimation (test)
                 if obj.normal
                     [obj.CV.kMCE(foldIndex, 2), temp] = PLS.predictStatic(...
@@ -333,9 +335,98 @@ classdef PLS
             obj.orderRed.MCE_statistics = MCE_statistics;
         end
 
-        function plotP(obj)
-            
-        end
+        function obj = plotScatter(obj, classes)
+            arguments
+                obj  {mustBeNonempty}
+                classes.ClassNames {mustBeText} = repmat("Class", 1, obj.pY) + (1:obj.pY);
+            end
+            copy = obj;
+            minAlpha = min(3, copy.mX);
+            if obj.mod2
+                string = "PLS2";
+            else
+                string = "PLS1";
+            end
+            obj.scatterTable = array2table(zeros(minAlpha, obj.pY+2));
+            obj.scatterTable.Properties.VariableNames = ["Alpha", classes.ClassNames, "Avg"];
+            for j = 1:minAlpha
+                copy = copy.estimate(j);
+                copy = copy.predict;
+                copy.T(392, :) = nan;
+                switch j
+                    case 1
+                        for i = 1:copy.pY
+                            idx = find(copy.Y(:, i) == 1);
+                            if i == 1
+                                figure
+                                scatter(copy.T(idx, 1), copy.T(idx, 1), 'filled')
+                            else
+                                grid on
+                                hold on
+                                scatter(copy.T(idx, 1), copy.T(idx, 1), 'filled')
+                            end
+                        end
+                        xlabel("$t_1$", 'Interpreter', 'latex')
+                        ylabel("$t_1$", 'Interpreter', 'latex')
+                        ax = gca;
+                        ax.XAxis.TickLabelInterpreter = 'latex';
+                        ax.YAxis.TickLabelInterpreter = 'latex';
+                        legend(classes.ClassNames, 'Interpreter', 'latex', 'Location', 'northwest')
+                        title("Scatter plot of the $T$ matrix", 'Interpreter', 'latex',...
+                            'FontSize', 14)
+                        subtitle(string + ", p = " + copy.pY + ", $\alpha$ = " + copy.alpha, 'Interpreter', 'latex')
+                        obj.scatterTable{1, 1} = 1;
+                        obj.scatterTable{1, 2:end} = round(copy.pMCE{:, :}*100, 2);
+                    case 2
+                        for i = 1:copy.pY
+                            idx = find(copy.Y(:, i) == 1);
+                            if i == 1
+                                figure
+                                scatter(copy.T(idx, 1), copy.T(idx, 2), 'filled')
+                            else
+                                grid on
+                                hold on
+                                scatter(copy.T(idx, 1), copy.T(idx, 2), 'filled')
+                            end
+                        end
+                        xlabel("$t_1$", 'Interpreter', 'latex')
+                        ylabel("$t_2$", 'Interpreter', 'latex')
+                        ax = gca;
+                        ax.XAxis.TickLabelInterpreter = 'latex';
+                        ax.YAxis.TickLabelInterpreter = 'latex';
+                        title("Scatter plot of the $T$ matrix", 'Interpreter', 'latex',...
+                            'FontSize', 14)
+                        subtitle(string + ", p = " + copy.pY + ", $\alpha$ = " + copy.alpha, 'Interpreter', 'latex')
+                        legend(classes.ClassNames, 'Interpreter', 'latex', 'Location', 'best')
+                        obj.scatterTable{2, 1} = 2;
+                        obj.scatterTable{2, 2:end} = round(copy.pMCE{:, :}*100, 2);
+                    case 3
+                        for i = 1:copy.pY
+                            idx = find(copy.Y(:, i) == 1);
+                            if i == 1
+                                figure
+                                scatter3(copy.T(idx, 1), copy.T(idx, 2), copy.T(idx, 3), 'filled')
+                            else
+                                grid on
+                                hold on
+                                scatter3(copy.T(idx, 1), copy.T(idx, 2), copy.T(idx, 3), 'filled')
+                            end
+                        end
+                        xlabel("$t_1$", 'Interpreter', 'latex')
+                        ylabel("$t_2$", 'Interpreter', 'latex')
+                        zlabel("$t_3$", 'Interpreter', 'latex')
+                        ax = gca;
+                        ax.XAxis.TickLabelInterpreter = 'latex';
+                        ax.YAxis.TickLabelInterpreter = 'latex';
+                        title("Scatter plot of the $T$ matrix", 'Interpreter', 'latex',...
+                            'FontSize', 14)
+                        subtitle(string + ", p = " + copy.pY + ", $\alpha$ = " + copy.alpha, 'Interpreter', 'latex')
+                        legend(classes.ClassNames, 'Interpreter', 'latex', 'Location', 'best')
+                        obj.scatterTable{3, 1} = 3;
+                        obj.scatterTable{3, 2:end} = round(copy.pMCE{:, :}*100, 2);
+                end
+            end
+        end   
     end
 
     methods (Static)
