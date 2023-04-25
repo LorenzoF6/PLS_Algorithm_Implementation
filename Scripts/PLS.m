@@ -21,8 +21,10 @@ classdef PLS
         Y_hat {mustBeNumeric}
         Y_hat_bin {mustBeNumeric}
         MCE {mustBeNumeric}
+        confMatrix {mustBeNumeric}
         pMCE
         PCA
+        TTV
         CV
         orderRed
     end
@@ -65,6 +67,7 @@ classdef PLS
                 disp("- Normalization: " + obj.normal);
                 disp("- Maximum iterations: " + obj.maxIter);
                 disp("- Exit tolerance: " + obj.tol);
+                disp("- Num. of observations: " + obj.nY);
                 disp("- Num. of output variables (Y): " + obj.pY);
                 disp("- Num. of input variables (X): " + obj.mX);
                 disp("- Order reduction: " + obj.alpha);
@@ -138,12 +141,78 @@ classdef PLS
                 end
                 obj.pMCE(1, j) = {errorCount/classCount};
             end
+            % computation of the confusion matrix (entire dataset)
+            Y_class = zeros(obj.nY, 1);
+            Y_class_hat = zeros(obj.nY, 1);
+            for i = 1:obj.nY
+                [~, Y_class(i, 1)] = max(obj.Y(i, :));
+                [~, Y_class_hat(i, 1)] = max(obj.Y_hat_bin(i, :));
+            end
+            obj.confMatrix = confusionmat(Y_class, Y_class_hat);
         end
 
-        function obj = crossval(obj, kFold)
+        function obj = validate(obj, testPercent, repeat)
+            arguments
+                obj {mustBeNonmissing}
+                testPercent {mustBeNumeric, mustBeNonzero, mustBePositive, ...
+                    mustBeLessThanOrEqual(testPercent, 1)} = .30
+                repeat.Repeatable {mustBeMember(repeat.Repeatable, ["true", "false"])} = "false"
+            end
+            if repeat.Repeatable == "true"
+                rng("default");
+            end
+            obj.TTV.TestPercent = testPercent;
+            % definition of data structures
+            ValMCE = array2table(zeros(1, 2));
+            ValMCE.Properties.VariableNames = ["Train", "Test"];
+            ValpMCE = array2table(zeros(2, obj.pY));
+            ValpMCE.Properties.VariableNames = repmat("Class", 1, obj.pY) + (1:obj.pY);
+            ValpMCE.Properties.RowNames = ["Train", "Test"];
+            % computation of train and test data
+            testIdx = [];
+            for j = 1:obj.pY
+                dataClass = find(obj.Y(:, j) == 1);
+                testIdx = [testIdx; randsample(dataClass,...
+                    round(size(dataClass, 1)*testPercent))];
+            end
+            trainIdx = setdiff(1:obj.nY, testIdx);
+            obj.TTV.X_train = obj.X(trainIdx, :);
+            obj.TTV.Y_train = obj.Y(trainIdx, :);
+            obj.TTV.X_test = obj.X(testIdx, :);
+            obj.TTV.Y_test = obj.Y(testIdx, :);
+            % PLS estimation (train)
+            if obj.mod2
+                obj1 = PLS(obj.TTV.X_train, obj.TTV.Y_train, "Algorithm", "PLS2", "Trace", "off");
+            else
+                obj1 = PLS(obj.TTV.X_train, obj.TTV.Y_train, "Algorithm", "PLS1", "Trace", "off");
+            end
+            obj1 = obj1.estimate(obj.alpha);
+            obj1 = obj1.predict;
+            ValMCE(1, 1) = array2table(obj1.MCE);
+            ValpMCE(1, :) = obj1.pMCE;
+            % PLS estimation (test)
+            if obj.normal
+                [ValMCE(1, 2), temp1, temp2] = PLS.predictStatic(...
+                    obj.TTV.Y_test, normalize(obj.TTV.X_test)*obj1.B);
+            else
+                [ValMCE(1, 2), temp1, temp2] = PLS.predictStatic(...
+                    obj.TTV.Y_test, obj.TTV.X_test*obj1.B);
+            end
+            ValpMCE(2, :) = array2table(temp1);
+            % results saving
+            obj.TTV.MCE = ValMCE;
+            obj.TTV.pMCE = ValpMCE;
+            obj.TTV.confMatrix = temp2;
+        end
+
+        function obj = crossval(obj, kFold, repeat)
             arguments
                 obj {mustBeNonmissing}
                 kFold {mustBeInteger} = 10;
+                repeat.Repeatable {mustBeMember(repeat.Repeatable, ["true", "false"])} = "false"
+            end
+            if repeat.Repeatable == "true"
+                rng("default");
             end
             % setting data structures and parameters
             obj.CV.kFold = kFold;
@@ -263,10 +332,14 @@ classdef PLS
             obj.orderRed.alphaMCE = alphaMCE;
             obj.orderRed.MCE_statistics = MCE_statistics;
         end
+
+        function plotP(obj)
+            
+        end
     end
 
     methods (Static)
-        function [MCE, pMCE] = predictStatic(Y, Y_hat)
+        function [MCE, pMCE, confMatrix] = predictStatic(Y, Y_hat)
             [nY, pY] = size(Y);
             Y_hat_bin = zeros(nY, pY);
             % classify data
@@ -305,6 +378,14 @@ classdef PLS
                 end
                 pMCE(1, j) = errorCount/classCount;
             end
+            % computation of the confusion matrix (entire dataset)
+            Y_class = zeros(nY, 1);
+            Y_class_hat = zeros(nY, 1);
+            for i = 1:nY
+                [~, Y_class(i, 1)] = max(Y(i, :));
+                [~, Y_class_hat(i, 1)] = max(Y_hat_bin(i, :));
+            end
+            confMatrix = confusionmat(Y_class, Y_class_hat);
         end
     end
 
