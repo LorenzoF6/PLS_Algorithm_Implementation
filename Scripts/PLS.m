@@ -105,52 +105,22 @@ classdef PLS
         end
 
         function obj = predict(obj)
-            % classify data
-            for i = 1:obj.nY
-                [~, j] = max(obj.Y_hat(i, :));
-                for k = 1:obj.pY
-                    if k == j
-                        obj.Y_hat_bin(i, k) = 1;
-                    else
-                        obj.Y_hat_bin(i, k) = 0;
-                    end
-                end
-            end
-            % computation of MCE
-            cont = 0;
-                for i = 1:obj.nY
-                    [~, j] = max(obj.Y(i, :));
-                    [~, k] = max(obj.Y_hat_bin(i, :));
-                    if j ~= k
-                        cont = cont + 1;
-                    end
-                end
-            obj.MCE = cont/obj.nY;
-            % computation of MCE for each class
-            obj.pMCE = array2table(zeros(1, obj.pY+1));
-            obj.pMCE.Properties.VariableNames = [repmat("Class", 1, obj.pY) + (1:obj.pY), "Avg"];
-            obj.pMCE(1, obj.pY+1) = {obj.MCE};
-            for j = 1:obj.pY
-                classCount = 0;
-                errorCount = 0;
-                for i = 1:obj.nY
-                    if obj.Y(i, j) == 1
-                        classCount = classCount + 1;
-                        if obj.Y(i, j) ~= obj.Y_hat_bin(i, j)
-                            errorCount = errorCount + 1;
-                        end
-                    end
-                end
-                obj.pMCE(1, j) = {errorCount/classCount};
-            end
+            % data classification
+            obj.Y_hat_bin = PLS.classifyData(obj.Y_hat);
+            % computation of MCE and pMCE
+            [obj.MCE, obj.pMCE] = PLS.computeMCE(obj.Y, obj.Y_hat_bin);
             % computation of the confusion matrix (entire dataset)
-            Y_class = zeros(obj.nY, 1);
-            Y_class_hat = zeros(obj.nY, 1);
-            for i = 1:obj.nY
-                [~, Y_class(i, 1)] = max(obj.Y(i, :));
-                [~, Y_class_hat(i, 1)] = max(obj.Y_hat_bin(i, :));
+            obj.confMatrix = PLS.computeConfMatrix(obj.Y, obj.Y_hat_bin);
+        end
+
+        function Y_hat_bin_new = predictNewData(obj, X_new)
+            if obj.normal
+                Y_hat_new = normalize(X_new)*obj.B;
+            else
+                Y_hat_new = X_new*obj.B;
             end
-            obj.confMatrix = confusionmat(Y_class, Y_class_hat);
+            Y_hat_new
+            Y_hat_bin_new = PLS.classifyData(Y_hat_new);
         end
 
         function obj = validate(obj, testPercent, repeat)
@@ -372,7 +342,7 @@ classdef PLS
                         ax.XAxis.TickLabelInterpreter = 'latex';
                         ax.YAxis.TickLabelInterpreter = 'latex';
                         legend(classes.ClassNames, 'Interpreter', 'latex', 'Location', 'northwest')
-                        title("Scatter plot of the $T$ matrix", 'Interpreter', 'latex',...
+                        title("Scatter plot of the score matrix T", 'Interpreter', 'latex',...
                             'FontSize', 14)
                         subtitle(string + ", p = " + copy.pY + ", $\alpha$ = " + copy.alpha, 'Interpreter', 'latex')
                         obj.scatterTable{1, 1} = 1;
@@ -394,7 +364,7 @@ classdef PLS
                         ax = gca;
                         ax.XAxis.TickLabelInterpreter = 'latex';
                         ax.YAxis.TickLabelInterpreter = 'latex';
-                        title("Scatter plot of the $T$ matrix", 'Interpreter', 'latex',...
+                        title("Scatter plot of the score matrix T", 'Interpreter', 'latex',...
                             'FontSize', 14)
                         subtitle(string + ", p = " + copy.pY + ", $\alpha$ = " + copy.alpha, 'Interpreter', 'latex')
                         legend(classes.ClassNames, 'Interpreter', 'latex', 'Location', 'best')
@@ -418,7 +388,7 @@ classdef PLS
                         ax = gca;
                         ax.XAxis.TickLabelInterpreter = 'latex';
                         ax.YAxis.TickLabelInterpreter = 'latex';
-                        title("Scatter plot of the $T$ matrix", 'Interpreter', 'latex',...
+                        title("Scatter plot of the score matrix T", 'Interpreter', 'latex',...
                             'FontSize', 14)
                         subtitle(string + ", p = " + copy.pY + ", $\alpha$ = " + copy.alpha, 'Interpreter', 'latex')
                         legend(classes.ClassNames, 'Interpreter', 'latex', 'Location', 'best')
@@ -429,11 +399,67 @@ classdef PLS
         end   
     end
 
-    methods (Static)
+    methods (Static, Access = private)
+        function Y_hat_bin = classifyData(Y_hat)
+            [nY, pY] = size(Y_hat);
+            Y_hat_bin = zeros(nY, pY);
+            for i = 1:nY
+                [~, j] = max(Y_hat(i, :));
+                for k = 1:pY
+                    if k == j
+                        Y_hat_bin(i, k) = 1;
+                    else
+                        Y_hat_bin(i, k) = 0;
+                    end
+                end
+            end
+        end
+
+        function [MCE, pMCE] = computeMCE(Y, Y_hat_bin)
+            [nY, pY] = size(Y);
+            % computation of MCE
+            cont = 0;
+                for i = 1:nY
+                    [~, j] = max(Y(i, :));
+                    [~, k] = max(Y_hat_bin(i, :));
+                    if j ~= k
+                        cont = cont + 1;
+                    end
+                end
+            MCE = cont/nY;
+            % computation of MCE for each class
+            pMCE = array2table(zeros(1, pY+1));
+            pMCE.Properties.VariableNames = [repmat("Class", 1, pY) + (1:pY), "Avg"];
+            pMCE(1, pY+1) = {MCE};
+            for j = 1:pY
+                classCount = 0;
+                errorCount = 0;
+                for i = 1:nY
+                    if Y(i, j) == 1
+                        classCount = classCount + 1;
+                        if Y(i, j) ~= Y_hat_bin(i, j)
+                            errorCount = errorCount + 1;
+                        end
+                    end
+                end
+                pMCE(1, j) = {errorCount/classCount};
+            end
+        end
+
+        function confMatrix = computeConfMatrix(Y, Y_hat_bin)
+            [nY, ~] = size(Y);
+            Y_class = zeros(nY, 1);
+            Y_class_hat = zeros(nY, 1);
+            for i = 1:nY
+                [~, Y_class(i, 1)] = max(Y(i, :));
+                [~, Y_class_hat(i, 1)] = max(Y_hat_bin(i, :));
+            end
+            confMatrix = confusionmat(Y_class, Y_class_hat);
+        end
+
         function [MCE, pMCE, confMatrix] = predictStatic(Y, Y_hat)
             [nY, pY] = size(Y);
             Y_hat_bin = zeros(nY, pY);
-            % classify data
             for i = 1:nY
                 [~, j] = max(Y_hat(i, :));
                 for k = 1:pY
