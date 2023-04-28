@@ -19,6 +19,7 @@ classdef PLS
         P {mustBeNumeric}
         X_hat {mustBeNumeric}
         Y_hat {mustBeNumeric}
+        PRESS {mustBeNumeric}
         Y_hat_bin {mustBeNumeric}
         MCE {mustBeNumeric}
         confMatrix {mustBeNumeric}
@@ -90,16 +91,20 @@ classdef PLS
             % estimation of X_hat and Y_hat
             obj.X_hat = obj.T*obj.P';
             if obj.normal
+                obj.PRESS = PLS.computePRESS(obj.X_norm, obj.X_hat);
                 obj.Y_hat = obj.X_norm*obj.B;
                 if PCA.PCA == "true"
                     [obj.PCA.P, obj.PCA.T] = pca(obj.X_norm, "NumComponents", obj.alpha);
                     obj.PCA.X_hat = obj.PCA.T*obj.PCA.P';
+                    obj.PCA.PRESS = PLS.computePRESS(obj.X_norm, obj.PCA.X_hat);
                 end
             else
+                obj.PRESS = PLS.computePRESS(obj.X, obj.X_hat);
                 obj.Y_hat = obj.X*obj.B;
                 if PCA.PCA == "true"
                     [obj.PCA.P, obj.PCA.T] = pca(obj.X, 'NumComponents', obj.alpha);
                     obj.PCA.X_hat = obj.PCA.T*obj.PCA.P';
+                    obj.PCA.PRESS = PLS.computePRESS(obj.X, obj.PCA.X_hat);
                 end
             end
         end
@@ -119,7 +124,6 @@ classdef PLS
             else
                 Y_hat_new = X_new*obj.B;
             end
-            Y_hat_new
             Y_hat_bin_new = PLS.classifyData(Y_hat_new);
         end
 
@@ -397,6 +401,13 @@ classdef PLS
                 end
             end
         end   
+    end
+    
+    methods (Static)
+        function PRESS = computePRESS(X, X_hat)
+            [nX, mX] = size(X);
+            PRESS = norm(X-X_hat, 'fro')/(nX*mX);
+        end
     end
 
     methods (Static, Access = private)
