@@ -1,5 +1,67 @@
 \section{Description of the PLS  algorithm}
 
-\begin{frame}
-	TO DO
+\begin{frame}[fragile]
+	\frametitle{NIPALS algorithm}
+	The most popular algorithm used in PLS to compute the model parameters is known as \textbf{non-iterative partial least squares} (\textbf{NIPALS}). There are two versions of this technique:
+	\begin{itemize}
+		\item \textbf{PLS1}: each of the \textit{p} predicted variables in modeled separately, resulting in one model for each class;
+		\item \textbf{PLS2}: all predicted variables are modeled simultaneously.
+	\end{itemize}
+	The first algorithm is more accurate than the other, however it requires more computational time than PLS2 to find the $\alpha$ eigenvectors into which project the \textit{m} covariates. 
+\end{frame}
+
+\begin{frame}[fragile]
+	\frametitle{MATLAB code}
+	The following MATLAB code implements the PLS2 algorithm:
+	\begin{Verbatim}[tabsize=4, commandchars=\\\{\}, frame=topline]
+E = X; \textcolor{green}{% residual matrix for X}
+F = Y; \textcolor{green}{% residual matrix for Y}
+[~, idx] = max(sum(Y.*Y));
+\textcolor{green}{% search of the j-th eigenvector}
+\textcolor{blue}{for} j = 1:alpha
+	u = F(:, idx);
+	tOld = 0;
+	\textcolor{blue}{for} i = 1:maxIter
+		w = (E'*u)/norm(E'*u); \textcolor{green}{% support vector}
+		t = E*w; \textcolor{green}{% j-th column of the score matrix for X}
+		q = (F'*t)/norm(F'*t); \textcolor{green}{% j-th column of the...}
+			\textcolor{green}{% loading matrix for Y}
+		u = F*q; \textcolor{green}{% j-th column of the score matrix for Y}
+	\end{Verbatim}
+\end{frame}
+
+\begin{frame}[fragile]
+	\begin{Verbatim}[tabsize=4, commandchars=\\\{\}]
+		\textcolor{blue}{if} abs(tOld - t) < exitTol
+			\textcolor{blue}{break};
+		\textcolor{blue}{else}
+			tOld = t;
+		\textcolor{blue}{end}
+	\textcolor{blue}{end}
+	p = (E'*t)/(t'*t); \textcolor{green}{% j-th column of the...}
+		\textcolor{green}{% loading matrix of X}
+	\textcolor{green}{% scaling}
+	t = t*norm(p);
+	w = w*norm(p);
+	p = p/norm(p);
+	\textcolor{green}{% calculation of b and the error matrices}
+	b = (u'*t)/(t'*t); \textcolor{green}{% j-th column of the...}
+	    \textcolor{green}{% coefficient regression matrix}
+	E = E - t*p';
+	F = F - b*t*q';
+	\end{Verbatim}
+\end{frame}
+
+\begin{frame}[fragile]
+	\begin{Verbatim}[tabsize=4, commandchars=\\\{\}, frame=bottomline]
+	\textcolor{green}{% calculation of W, P, T and B2}
+	W(:, j) = w;
+	P(:, j) = p;
+	T(:, j) = t;
+	B2 = W*(P'*W)^-1*(T'*T)^-1*T'*Y;
+\textcolor{blue}{end}
+Y_hat = X*B2; \textcolor{green}{% computation of predictions}
+	\end{Verbatim}
+For each row of \verb|Y_hat| the fault class is chosen by assigning $1$ to the column whose value si greater than that of the others, $0$ otherwise. Moreover, to increase the performances of PLS it is necessary \textbf{normalize} both $X$ and $Y$ before running the algorithm.
+
 \end{frame}

@@ -14,13 +14,18 @@
 \begin{frame}
 	\frametitle{Popular application of PLS}
 	This technique is often used in \textbf{fault detection} and \textbf{isolation}. With PLS is possible to treat both regression and classification problems. The matrix $X$ always contains the process variables (e.g. diameter and thickness of a gasket), while the matrix $Y$ only (quantitative) quality variables (e.g. its mechanical seal) in the regression case, whereas in pattern classification the predicted variables are dummy variables ($1$ or $0$) such as:
-	\begin{equation}
+	\begin{equation*}
 		Y = 
+		\begin{bmatrix}
+			\boldsymbol{y}_1 & \boldsymbol{y}_2 & \boldsymbol{y}_3\\
+		\end{bmatrix}
+		=
 		\begin{bmatrix}
 			1 & \dots & 1 & 0 & \dots & 0 & 0 & \dots & 0\\
 			0 & \dots & 0 & 1 & \dots & 1 & 0 & \dots & 0\\
 			0 & \dots & 0 & 0 & \dots & 0 & 1 & \dots & 1\\
-		\end{bmatrix}^\top
-	\end{equation}
-	where each column of $Y$ corresponds to a fault class. The first $n_j$ elements of column $j$ are filled with a $1$, which indicates that the first $n_j$ rows of $X$ are data from fault $j$. In this case PLS is called \textbf{discriminant}.
+		\end{bmatrix}^\top 
+		p = 3
+	\end{equation*}
+	where each column of $Y$ corresponds to a \textit{fault class}. The first $n_j$ elements of column $j$ are filled with a $1$, which indicates that the first $n_j$ rows of $X$ are data from fault $j$. In classification case PLS is named \textbf{discriminant}.
 \end{frame}
