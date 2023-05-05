@@ -10,6 +10,21 @@
 	The first algorithm is more accurate than the other, however it requires more computational time than PLS2 to find the $\alpha$ eigenvectors into which project the \textit{m} covariates. 
 \end{frame}
 
+\begin{frame}
+	\frametitle{Data structures}
+	Before starting with the description of the algorithm, we recall that:
+	\begin{itemize}
+		\item the matrix $X \in \mathbb{R}^{n\times m}$ is decomposed into a \textbf{score matrix} $T \in \mathbb{R}^{n\times\alpha}$ and a \textbf{loading matrix} $P \in \mathbb{R}^{m\times\alpha}$ such that $X = \hat{X} + E = T\cdot P^\top + E$, where $E \in \mathbb{R}^{n\times m}$ is the (true) \textbf{residual} matrix for $X$;
+		\item the matrix $Y \in \mathbb{R}^{n\times p}$ is decomposed into a \textbf{score matrix} $U\in\mathbb{R}^{n\times\alpha}$ and a \textbf{loading matrix} $Q\in \mathbb{R}^{p\times\alpha}$ such that $Y = \hat{Y} + \widetilde{F} = U\cdot Q^\top + \widetilde{F}$, where $\widetilde{F}\in \mathbb{R}^{n\times p}$ is the (true) \textbf{residual matrix} for $Y$.
+		\item the matrix $B\in \mathbb{R}^{\alpha\times\alpha}$ is the \textbf{diagonal regression matrix} such that $\hat{U} = T\cdot B$.
+	\end{itemize}
+	Therefore:
+	\begin{center}
+		$Y = \hat{U}\cdot Q^\top + F =  T\cdot B\cdot Q^\top + F$
+	\end{center}
+	where $F$ is the \textbf{prediction error matrix}; $B$ is selected such that the induced $2$-norm of $F$ is minimized. 
+\end{frame}
+
 \begin{frame}[fragile]
 	\frametitle{MATLAB code}
 	The following MATLAB code implements the PLS2 algorithm:
@@ -47,8 +62,8 @@ F = Y; \textcolor{green}{% residual matrix for Y}
 	\textcolor{green}{% calculation of b and the error matrices}
 	b = (u'*t)/(t'*t); \textcolor{green}{% j-th column of the...}
 	    \textcolor{green}{% coefficient regression matrix}
-	E = E - t*p';
-	F = F - b*t*q';
+	E = E - t*p';  \textcolor{green}{% update of the residuals for matrix X}
+	F = F - b*t*q'; \textcolor{green}{% update of the residuals for matrix Y}
 	\end{Verbatim}
 \end{frame}
 
@@ -62,6 +77,6 @@ F = Y; \textcolor{green}{% residual matrix for Y}
 \textcolor{blue}{end}
 Y_hat = X*B2; \textcolor{green}{% computation of predictions}
 	\end{Verbatim}
-For each row of \verb|Y_hat| the fault class is chosen by assigning $1$ to the column whose value si greater than that of the others, $0$ otherwise. Moreover, to increase the performances of PLS it is necessary \textbf{normalize} both $X$ and $Y$ before running the algorithm.
+For each row of \verb|Y_hat| the fault class is chosen by assigning $1$ to the column whose value si greater than that of the others, $0$ otherwise. \\Moreover, to increase the performances of PLS it is necessary \textbf{normalize} both $X$ and $Y$ before running the algorithm.
 
 \end{frame}
