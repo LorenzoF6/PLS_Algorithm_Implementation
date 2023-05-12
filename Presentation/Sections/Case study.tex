@@ -2,14 +2,27 @@
 
 \begin{frame}
 	\frametitle{Dataset description}
-	The steel plates faults dataset comes from research by Semeion, Research Center of Sciences of Communication. The aim of the research was to correctly classify the type of surface defects in stainless steel plates. Below is some information about the dataset:
-	\begin{itemize}
-		\item number of fault classes: $6 + 1$ (no faults);
-		\item number of attributes: $27$;
-		\item number of instances: $1941$;
-		\item absence of missing values.
-	\end{itemize}
-	Unfortunately, no further details on the covariates are available.
+	\begin{columns}
+		\begin{column}{0.50\textwidth}
+			\justifying
+			The steel plates faults dataset comes from research by Semeion, Research Center of Sciences of Communication. The aim of the research was to correctly classify the type of surface defects in stainless steel plates. Some information about the dataset:
+			\begin{itemize}
+				\item number of fault classes: $6 + 1$ (no faults);
+				\item number of attributes: $27$;
+				\item number of instances: $1941$;
+				\item absence of missing values.
+			\end{itemize}
+			Unfortunately, no further details on the covariates are available.
+		\end{column}
+		\begin{column}{0.50\textwidth}
+			\begin{figure}
+				\centering
+				\includegraphics[width=0.75\textwidth]{Images/steel_plates_1.jpg}\\
+				\vspace{0.5cm}
+			    \includegraphics[width=0.75\textwidth]{Images/steel_plates_2.jpg}
+			\end{figure}
+		\end{column}
+	\end{columns}
 \end{frame}
 
 \begin{frame}
@@ -58,7 +71,7 @@
 \end{frame}
 
 \begin{frame}
-	\frametitle{Validation $70-30$ of the PLS2 model with $\alpha = 13$}
+	\frametitle{Validation $70/30$ of the PLS2 model with $\alpha = 13$}
 	\begin{figure}
 		\begin{subfigure}[b]{0.49\textwidth}
 			\includegraphics[width=\textwidth]{Images/confusion_all_5_PLS2.pdf}
@@ -74,11 +87,15 @@
 \begin{frame}
 	\frametitle{Score matrix $T$ with $\alpha = 1$, $2$ and $3$}
 	\begin{figure}
-		\begin{subfigure}[b]{0.49\textwidth}
+		\begin{subfigure}[b]{0.70\textwidth}
 			\includegraphics[width=\textwidth]{Images/scatter_T_a1_p5.pdf}
 		\end{subfigure}
-		\hfill
-		\begin{subfigure}[b]{0.49\textwidth}
+	\end{figure}
+\end{frame}
+
+\begin{frame}
+	\begin{figure}
+		\begin{subfigure}[b]{0.70\textwidth}
 			\includegraphics[width=\textwidth]{Images/scatter_T_a2_p5.pdf}
 		\end{subfigure}
 	\end{figure}
@@ -86,10 +103,13 @@
 
 \begin{frame}
 	\begin{figure}
-		\begin{subfigure}[b]{0.60\textwidth}
+		\begin{subfigure}[b]{0.80\textwidth}
 			\includegraphics[width=\textwidth]{Images/scatter_T_a3_p5.pdf}
 		\end{subfigure}
 	\end{figure}
+\end{frame}
+
+\begin{frame}
 	\begin{table}
 		\centering
 		\renewcommand\arraystretch{1.3}
@@ -103,4 +123,5 @@
 			\hline
 		\end{tabular}
 	\end{table}
+	As the order reduction $\alpha$ increases, the number of fault classes that are confused with the remaining ones decreases. In particular, we can note that the error rate related to the fault class Stains decreases substantially in the passage from $\alpha = 1$ to $\alpha = 2$; indeed, from $\mathbb{R}^2$ its subspace predominates over the subspaces of the other classes. Instead, the Dirtiness class continues to be hidden from the others for any order reduction. 
 \end{frame}
