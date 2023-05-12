@@ -1,8 +1,8 @@
-<h1 align="center">Partial Least Squares Algorithm Implementation</h1>
+<h1 align="center">Implementation in MATLAB of the PLS algorithm for classification</h1>
 
 ## Authors
-* **FERRARI Lorenzo**, 1053161, postgraduate in Computer Engineering at University of Bergamo.
-* **LEONI Lorenzo**, 1053379, postgraduate in Computer Engineering at University of Bergamo.
+* **FERRARI Lorenzo**, postgraduate in Computer Engineering at University of Bergamo.
+* **LEONI Lorenzo**, postgraduate in Computer Engineering at University of Bergamo.
 
 ## Descrption
 Implementation of the PLS algorithm through a MATLAB class which allows:
