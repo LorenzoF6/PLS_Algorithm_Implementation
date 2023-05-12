@@ -4,7 +4,7 @@
 * **FERRARI Lorenzo**, postgraduate in Computer Engineering at University of Bergamo.
 * **LEONI Lorenzo**, postgraduate in Computer Engineering at University of Bergamo.
 
-## Descrption
+## Description
 Implementation of the PLS algorithm through a MATLAB class which allows:
 * to estimate a classification model using the NIPALS algorithm;
 * to validate and cross-validate it by providing some performance metrics;
