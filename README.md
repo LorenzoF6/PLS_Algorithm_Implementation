@@ -1,8 +1,19 @@
 <h1 align="center">Partial Least Squares Algorithm Implementation</h1>
 
-## Overview of the project
-The repository contains the Software project for the course of Adaptive Learning, Estimation and Supervision of Dynamical Systems (38095) 
-held by Prof. Mazzoleni Mirko at the University of Bergamo
+
+## Authors
+* **FERRARI Lorenzo**, 1053161, postgraduate in Computer Engineering at University of Bergamo.
+* **LEONI Lorenzo**, 1053379, postgraduate in Computer Engineering at University of Bergamo.
+
+## Descrption
+Implementation of the PLS algorithm through a MATLAB class which allows:
+* to estimate the classification model using the NIPALS algorithm;
+* to validate and cross-validate it by providing some performance metrics;
+* to predict new instances starting from the trained model;
+* to calculate the best reduction order;
+* to perform a comparison with the PCA technique.
+
+link[Scripts\Data_analysis.mlx] contains an application example of the PLS.m class
 
 ## Goals
 - [x] ...
@@ -19,6 +30,3 @@ The documentation is aviable at this link []
     ├── Images                  # Images 
     └── README.md
 
-## Authors
-* Ferrari Lorenzo, 1053161
-* Leoni Lorenzo, 
