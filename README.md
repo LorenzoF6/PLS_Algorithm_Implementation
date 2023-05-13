@@ -5,12 +5,12 @@
 * **LEONI Lorenzo**, postgraduate in Computer Engineering at University of Bergamo.
 
 ## Description
-Implementation of the PLS algorithm through a MATLAB class which allows:
-* to estimate a classification model using the NIPALS algorithm;
-* to validate and cross-validate it by providing some performance metrics;
-* to predict new instances starting from the trained model;
-* to compute the best reduction order;
-* to perform a comparison with the PCA technique.
+Implementation of the **discriminant PLS algorithm** through a MATLAB class. It provides the following features:
+* *estimation* of a PLS model by using the NIPALS algorithm, both PLS1 and PLS2 versions;
+* *validation* of the estimated model by providing not only the test MCE for each class, but also the test confusion matrix;
+* *cross-validation* to find the best reduction order;
+* *graphing* of the matrix T for orders 1, 2, and 3;
+* *classification* of new data;
 
-[Data_analysis.mlx](Scripts/Data_analysis.mlx) contains an example of how [PLS.m](Scripts/PLS.m) can be used to classify 
-steel plates faults by using this [dataset](https://www.kaggle.com/datasets/uciml/faulty-steel-plates) available on Kaggle.
+Moreover, [PLS.m](Scripts/PLS.m) can also estimate a PCA model, therefore it is possible to compare it with PLS.
+##
