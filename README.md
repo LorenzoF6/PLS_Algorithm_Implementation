@@ -13,4 +13,9 @@ Implementation of the **discriminant PLS algorithm** through a MATLAB class. It 
 * *classification* of new data;
 
 Moreover, [PLS.m](Scripts/PLS.m) can also estimate a PCA model, therefore it is possible to compare it with PLS.
-##
+
+## Installation
+It is enough to put [PLS.m](Scripts/PLS.m) in your working directory and methods of this MATLAB class will be ready to be called in your script.
+
+## Coding example 
+[Data_analysis.mlx](Scripts/Data_analysis.mlx) contains an example of how this MATLAB class can be used to solve a classification problem by using the PLS algorithm. In particular, the covered problem deals with **steel plates fault detection**. The source dataset is available on [Kaggle](https://www.kaggle.com/datasets/uciml/faulty-steel-plates).
