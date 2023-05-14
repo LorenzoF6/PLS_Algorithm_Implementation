@@ -3,6 +3,7 @@
 ![GitHub repo size](https://img.shields.io/github/repo-size/LorenzoF6/PLS_Algorithm_Implementation)
 ![GitHub top language](https://img.shields.io/github/languages/top/LorenzoF6/PLS_Algorithm_Implementation?color=yellow&label=MATLAB)
 ![GitHub](https://img.shields.io/github/license/LorenzoF6/PLS_Algorithm_Implementation)
+![GitHub release (latest by date)](https://img.shields.io/github/v/release/LorenzoF6/PLS_Algorithm_Implementation?color=g)
 
 ## Authors
 * **FERRARI Lorenzo**, postgraduate in Computer Engineering at University of Bergamo.
