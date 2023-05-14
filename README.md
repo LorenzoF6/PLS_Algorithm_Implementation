@@ -1,5 +1,9 @@
 # Implementation in MATLAB of the PLS algorithm for classification
 
+![GitHub repo size](https://img.shields.io/github/repo-size/LorenzoF6/PLS_Algorithm_Implementation)
+![GitHub top language](https://img.shields.io/github/languages/top/LorenzoF6/PLS_Algorithm_Implementation?color=yellow&label=MATLAB)
+![GitHub](https://img.shields.io/github/license/LorenzoF6/PLS_Algorithm_Implementation)
+
 ## Authors
 * **FERRARI Lorenzo**, postgraduate in Computer Engineering at University of Bergamo.
 * **LEONI Lorenzo**, postgraduate in Computer Engineering at University of Bergamo.
