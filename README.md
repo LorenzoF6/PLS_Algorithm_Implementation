@@ -21,9 +21,9 @@ It is enough to put [PLS.m](Scripts/PLS.m) in your working directory and methods
 [Data_analysis.mlx](Scripts/Data_analysis.mlx) contains an example of how this MATLAB class can be used to solve a classification problem by using the PLS algorithm. In particular, the covered problem deals with **steel plates fault detection**. The source dataset is available on [Kaggle](https://www.kaggle.com/datasets/uciml/faulty-steel-plates).
 
 ### Results plotting 
-The following graphs summarize some resullts of the data analysis:
+The following graphs summarize some results of the data analysis:
 
-<img src = "ForReadme/plot2.svg" alt = "plot1" width = "70%" height = "70%" align = "center" />
-<img src = "ForReadme/plot1.svg" alt = "plot2" width = "70%" height = "70%" align = "center" />
-<img src = "ForReadme/plot3.svg" alt = "plot3" width = "70%" height = "70%" align = "center" />
-<img src = "ForReadme/plot4.svg" alt = "plot4" width = "70%" height = "70%" align = "center" />
+<img src="ForReadme/plot2.svg" alt="plot1" width="70%" height="70%" align="center" />
+<img src="ForReadme/plot1.svg" alt="plot2" width="70%" height="70%" align="center" />
+<img src="ForReadme/plot3.svg" alt="plot3" width="70%" height="70%" align="center" />
+<img src="ForReadme/plot4.svg" alt="plot4" width="70%" height="70%" align="center" />
